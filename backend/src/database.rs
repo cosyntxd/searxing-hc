@@ -1,10 +1,17 @@
-use std::{cmp::Reverse, collections::{BinaryHeap, HashMap}, fs::{self, File}, io::Write, sync::RwLock, time::Instant};
+use std::{
+    cmp::Reverse,
+    collections::{BinaryHeap, HashMap},
+    fs::{self, File},
+    io::Write,
+    sync::RwLock,
+    time::Instant,
+};
 
 use ordered_float::OrderedFloat;
 
-use crate::data::{DatabasePage, DetailedSearchResult, ExtraData, ScrapedMainPageEnum, ScrapedPage};
-
-
+use crate::data::{
+    DatabasePage, DetailedSearchResult, ExtraData, ScrapedMainPageEnum, ScrapedPage,
+};
 
 pub struct Database {
     pub raw_data: RwLock<Vec<ScrapedPage>>,
@@ -22,13 +29,11 @@ impl Database {
     }
     pub fn load_file(name: &'static str) -> Database {
         let raw_data_from_file = match fs::read_to_string(name) {
-            Ok(data) => {
-                match serde_json::from_str(&data) {
-                    Ok(good) => good,
-                    Err(e) => {
-                        eprintln!("cant load from json");
-                        None
-                    },
+            Ok(data) => match serde_json::from_str(&data) {
+                Ok(good) => good,
+                Err(e) => {
+                    eprintln!("cant load from json");
+                    None
                 }
             },
             Err(e) => {
@@ -37,9 +42,9 @@ impl Database {
                     eprintln!("cant make new file (bad)");
                 }
                 None
-            },
+            }
         };
-        // why tf cant type be infered, lsp knows but not rustc 
+        // why tf cant type be infered, lsp knows but not rustc
         let raw_data: Vec<ScrapedPage> = raw_data_from_file.unwrap_or_default();
 
         let mut relational = HashMap::new();
@@ -71,7 +76,7 @@ impl Database {
                 embedding: [0.0; 768],
                 score_multiplier: 1.0,
                 embed_good: false,
-            }
+            },
         };
 
         if let Some(existing_idx) = self.relational.get(&entry.unique_string()) {
@@ -82,18 +87,19 @@ impl Database {
     }
     pub fn search_and_rank_json(&self, query: String, k: usize) -> String {
         let data = self.raw_data.read().unwrap();
-        let mut min_heap: BinaryHeap<Reverse<(OrderedFloat<f32>, usize)>> = BinaryHeap::with_capacity(50);
+        let mut min_heap: BinaryHeap<Reverse<(OrderedFloat<f32>, usize)>> =
+            BinaryHeap::with_capacity(50);
 
         for (i, page) in data.iter().enumerate() {
             let current_rank = OrderedFloat(page.page.rank(&query));
-            if current_rank.0 < 0.0 && !query.is_empty(){
+            if current_rank.0 < 0.0 && !query.is_empty() {
                 continue;
             }
             let heap_item = Reverse((current_rank, i));
 
             if min_heap.len() < k {
                 min_heap.push(heap_item);
-            } else {   
+            } else {
                 if current_rank > min_heap.peek().unwrap().0.0 {
                     min_heap.pop();
                     min_heap.push(heap_item);
@@ -105,17 +111,14 @@ impl Database {
             .map(|reverse_item| reverse_item.0)
             .collect();
 
-        top_page_info.sort_by(|a, b| {
-            b.0.cmp(&a.0)
-            .then_with(|| a.1.cmp(&b.1))
-        });
+        top_page_info.sort_by(|a, b| b.0.cmp(&a.0).then_with(|| a.1.cmp(&b.1)));
 
         let top_pages = top_page_info
             .into_iter()
             .map(|(rank, original_index)| DetailedSearchResult {
                 rank: rank.0,
                 id: original_index,
-                event: data[original_index].page.unique_string(), 
+                event: data[original_index].page.unique_string(),
                 page: data[original_index].page.preview(),
             })
             .collect::<Vec<DetailedSearchResult>>();
@@ -131,7 +134,7 @@ impl Database {
     pub fn set_embedding(&self, index: usize, embed: Vec<f32>) {
         let mut data = self.raw_data.write().unwrap();
         assert!(index < data.len());
-        let target = & mut data[index].extra;
+        let target = &mut data[index].extra;
         assert!(target.embedding.len() == embed.len());
         target.embed_good = true;
         target.embedding = embed.try_into().unwrap();

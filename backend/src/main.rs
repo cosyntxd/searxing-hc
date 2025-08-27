@@ -1,25 +1,40 @@
 pub mod data;
 pub mod database;
 pub mod links;
-use tokio::net::{unix::UCred, UnixListener, UnixStream};
-use axum::{
-    extract::{Path, Query, State}, http::{header::{ACCEPT, AUTHORIZATION, CONTENT_TYPE}, HeaderValue, Method}, response::{Html, IntoResponse}, routing::{get, get_service, post}, Json, Router
-};
 use axum::http::StatusCode;
+use axum::{
+    Json, Router,
+    extract::{Path, Query, State},
+    http::{
+        HeaderValue, Method,
+        header::{ACCEPT, AUTHORIZATION, CONTENT_TYPE},
+    },
+    response::{Html, IntoResponse},
+    routing::{get, get_service, post},
+};
 use serde::{Deserialize, Serialize};
-use std::{env, net::SocketAddr, path::PathBuf, process::exit, sync::Arc, time::{Duration, Instant}};
+use std::{
+    env,
+    net::SocketAddr,
+    path::PathBuf,
+    process::exit,
+    sync::Arc,
+    time::{Duration, Instant},
+};
+use tokio::net::{UnixListener, UnixStream, unix::UCred};
 use tokio::{net::TcpListener, signal, time};
 use tower_http::{cors::CorsLayer, services::ServeDir};
 
-use crate::{data::{ScrapedMainPageEnum, Summer2025MainPage}, database::Database};
+use crate::{
+    data::{ScrapedMainPageEnum, Summer2025MainPage},
+    database::Database,
+};
 
 struct AppState {
     data: Database,
     secret: String,
     start_time: Instant,
 }
-
-
 
 async fn periodic_saves(state: Arc<AppState>) {
     let mut interval = time::interval(Duration::from_secs(15));
@@ -29,14 +44,13 @@ async fn periodic_saves(state: Arc<AppState>) {
         println!("saving db...");
         state.data.save_json();
         println!("completed saving db");
-
     }
 }
 
 #[derive(Deserialize, Serialize, Debug)]
 struct AddDataRequest {
     secret: String,
-    data: String, 
+    data: String,
 }
 
 async fn add_data(
@@ -47,7 +61,7 @@ async fn add_data(
         return (StatusCode::UNAUTHORIZED, "Invalid secret".to_string()).into_response();
     }
 
-    let entry: ScrapedMainPageEnum  = match serde_json::from_str(&payload.data) {
+    let entry: ScrapedMainPageEnum = match serde_json::from_str(&payload.data) {
         Ok(val) => val,
         Err(e) => {
             eprintln!("Failed to parse data as JSON: {}", e);
@@ -57,7 +71,10 @@ async fn add_data(
 
     app_state.data.add_entry(entry);
 
-    let response_message = format!("Approx size of db: {}", app_state.data.raw_data.read().unwrap().len());
+    let response_message = format!(
+        "Approx size of db: {}",
+        app_state.data.raw_data.read().unwrap().len()
+    );
 
     (StatusCode::OK, response_message).into_response()
 }
@@ -94,10 +111,15 @@ async fn get_preview(
     match serde_json::to_string(page) {
         Ok(json) => {
             println!("loaded preview in: {:?}", db_load_start.elapsed());
-            (StatusCode::OK, json).into_response()},
+            (StatusCode::OK, json).into_response()
+        }
         Err(e) => {
             eprintln!("Failed to serialize page preview: {}", e);
-            (StatusCode::INTERNAL_SERVER_ERROR, "Failed to serialize preview".to_string()).into_response()
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "Failed to serialize preview".to_string(),
+            )
+                .into_response()
         }
     }
 }
@@ -127,14 +149,17 @@ async fn set_extras(
 
     if let Some(embedding) = payload.embedding {
         if embedding.len() != 1536 {
-            return (StatusCode::BAD_REQUEST, "Embedding must be of length 1536".to_string()).into_response();
+            return (
+                StatusCode::BAD_REQUEST,
+                "Embedding must be of length 1536".to_string(),
+            )
+                .into_response();
         }
         app_state.data.set_embedding(payload.id, embedding);
     }
-    
+
     (StatusCode::OK, "Extras updated successfully".to_string()).into_response()
 }
-
 
 #[tokio::main]
 async fn main() {
@@ -145,12 +170,14 @@ async fn main() {
         eprintln!("no secret is an oops in prod, using default.");
         "not_a_secret_secret".into()
     });
-    let state = Arc::new(AppState  { data: database, secret, start_time: Instant::now() });
+    let state = Arc::new(AppState {
+        data: database,
+        secret,
+        start_time: Instant::now(),
+    });
 
     let cors_layer = CorsLayer::new()
-        .allow_origin([
-            "http://localhost:6552".parse::<HeaderValue>().unwrap(),
-        ])
+        .allow_origin(["http://localhost:6552".parse::<HeaderValue>().unwrap()])
         .allow_methods([
             Method::GET,
             Method::POST,
@@ -161,9 +188,13 @@ async fn main() {
         ])
         .allow_headers([AUTHORIZATION, CONTENT_TYPE, ACCEPT]);
 
-
     let app = Router::new()
-        .route("/", get_service(ServeDir::new("/Users/ryan/Github/Hackclub-projects/website/index.html")))
+        .route(
+            "/",
+            get_service(ServeDir::new(
+                "/Users/ryan/Github/Hackclub-projects/website/index.html",
+            )),
+        )
         .route("/add", post(add_data))
         .route("/query", get(query_sort))
         .route("/preview", get(get_preview))
@@ -180,29 +211,20 @@ async fn main() {
         exit(0)
     });
 
-
-
-
-    let listener = tokio::net::TcpListener::bind("127.0.0.1:6552").await.unwrap();
-
-    axum::serve(listener, app)
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:6552")
         .await
         .unwrap();
-        // let path = PathBuf::from("/home/searxing/.searxing.hackclub.app.axum.sock");
 
-        // let _ = tokio::fs::remove_file(&path).await;
-        // tokio::fs::create_dir_all(path.parent().unwrap())
-        //     .await
-        //     .unwrap();
+    axum::serve(listener, app).await.unwrap();
+    // let path = PathBuf::from("/home/searxing/.searxing.hackclub.app.axum.sock");
 
-        // let uds = UnixListener::bind(path.clone()).unwrap();
-        // tokio::spawn(async move {
-        //     axum::serve(uds, app).await.unwrap();
-        // });
+    // let _ = tokio::fs::remove_file(&path).await;
+    // tokio::fs::create_dir_all(path.parent().unwrap())
+    //     .await
+    //     .unwrap();
 
-        
-
-        
-
-
+    // let uds = UnixListener::bind(path.clone()).unwrap();
+    // tokio::spawn(async move {
+    //     axum::serve(uds, app).await.unwrap();
+    // });
 }

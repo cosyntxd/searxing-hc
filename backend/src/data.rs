@@ -2,8 +2,6 @@ use enum_dispatch::enum_dispatch;
 use serde::{Deserialize, Serialize};
 use serde_big_array::BigArray;
 
-
-
 #[derive(Serialize, Debug)]
 pub struct DetailedSearchResult {
     pub id: usize,
@@ -77,7 +75,7 @@ impl DatabasePage for Journey2025MainPage {
     fn rank(&self, query: &String) -> f32 {
         self.followers as f32 + self.stonks as f32 * 0.2
     }
-    
+
     fn unique_string(&self) -> String {
         format!("{}", self.id)
     }
@@ -103,8 +101,6 @@ pub struct Summer2025MainPage {
 }
 // test
 
-
-
 #[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct Summer2025IndividualUpdate {
     time: u32,
@@ -115,21 +111,27 @@ impl DatabasePage for Summer2025MainPage {
     fn rank(&self, query: &String) -> f32 {
         let query = query.to_lowercase();
         let mut rank = 0.0;
-        
+
         for (i, word) in query.replace('-', " ").split_whitespace().enumerate() {
-            let word_scale =  0.45 + 0.55 * (-0.2231 * i as f32).exp();
+            let word_scale = 0.45 + 0.55 * (-0.2231 * i as f32).exp();
 
-            rank += self.name
+            rank += self
+                .name
                 .to_lowercase()
                 .split_whitespace()
                 .filter(|s| s.contains(&word))
-                .count() as f32 * 5.11 * word_scale;
+                .count() as f32
+                * 5.11
+                * word_scale;
 
-            rank += self.description
+            rank += self
+                .description
                 .to_lowercase()
                 .split_whitespace()
                 .filter(|s| s.contains(&word))
-                .count() as f32 * 3.27 * word_scale;
+                .count() as f32
+                * 3.27
+                * word_scale;
         }
         // yes
         if rank > 1.0 {
@@ -147,12 +149,13 @@ impl DatabasePage for Summer2025MainPage {
         if self.time < 1000 {
             rank -= 1.0;
         }
-        if self.description.contains('—') { // em dash
+        if self.description.contains('—') {
+            // em dash
             rank -= 0.8;
         }
         rank += (self.description.len() as f32 / 90.0).sqrt().min(1.2);
         rank += (self.updates.len() as f32 / 9.0).sqrt().min(2.3);
-        rank += ((self.followers as f32 / 4.5)).min(4.3);
+        rank += (self.followers as f32 / 4.5).min(4.3);
         rank += (self.time as f32 / 8_000.0).min(4.6);
 
         if let Some(_) = &self.demo {
@@ -161,7 +164,7 @@ impl DatabasePage for Summer2025MainPage {
 
         rank
     }
-    
+
     fn unique_string(&self) -> String {
         return self.url.clone();
     }
@@ -174,6 +177,3 @@ impl DatabasePage for Summer2025MainPage {
         }
     }
 }
-
-
-
