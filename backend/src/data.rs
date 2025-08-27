@@ -1,0 +1,179 @@
+use enum_dispatch::enum_dispatch;
+use serde::{Deserialize, Serialize};
+use serde_big_array::BigArray;
+
+
+
+#[derive(Serialize, Debug)]
+pub struct DetailedSearchResult {
+    pub id: usize,
+    pub rank: f32,
+    pub event: String,
+    pub page: GenericPreviewSearchData,
+}
+
+#[derive(Serialize, Debug)]
+pub struct GenericPreviewSearchData {
+    pub img: String,
+    pub name: String,
+    pub description: String,
+    pub props: String,
+}
+
+#[derive(Deserialize, Serialize, Debug)]
+pub struct ScrapedPage {
+    pub page: ScrapedMainPageEnum,
+    pub extra: ExtraData,
+}
+
+#[derive(Deserialize, Serialize, Debug)]
+pub struct ExtraData {
+    // #[serde(with = "BigArray")]
+    // pub dirty_embedding: [f32; 96]
+    #[serde(with = "BigArray")]
+    pub embedding: [f32; 768], // 384 is nicer
+    pub score_multiplier: f32,
+    pub embed_good: bool,
+}
+
+#[enum_dispatch]
+pub trait DatabasePage {
+    fn rank(&self, query: &String) -> f32;
+    fn unique_string(&self) -> String;
+    fn preview(&self) -> GenericPreviewSearchData;
+}
+
+#[derive(Deserialize, Serialize, Debug, Clone)]
+#[enum_dispatch(DatabasePage)]
+
+pub enum ScrapedMainPageEnum {
+    Journey2025(Journey2025MainPage),
+    Summer2025(Summer2025MainPage),
+}
+
+// Journey 2025
+#[derive(Deserialize, Serialize, Debug, Default, Clone)]
+pub struct Journey2025MainPage {
+    id: u32,
+    main_image: String,
+    name: String,
+    description: String,
+    author: String,
+    followers: u16,
+    stonks: u16,
+    time: String,
+    readme: Option<String>,
+    repo: Option<String>,
+    demo: Option<String>,
+    updates: Vec<Journey2025IndividualUpdate>,
+}
+#[derive(Deserialize, Serialize, Debug, Default, Clone)]
+pub struct Journey2025IndividualUpdate {
+    time: String,
+    message: String,
+    attatchments: Vec<String>,
+}
+impl DatabasePage for Journey2025MainPage {
+    fn rank(&self, query: &String) -> f32 {
+        self.followers as f32 + self.stonks as f32 * 0.2
+    }
+    
+    fn unique_string(&self) -> String {
+        format!("{}", self.id)
+    }
+    fn preview(&self) -> GenericPreviewSearchData {
+        todo!()
+    }
+}
+
+// Summer of Making 2025
+#[derive(Deserialize, Serialize, Debug, Default, Clone)]
+pub struct Summer2025MainPage {
+    url: String,
+    main_image: String,
+    name: String,
+    description: String,
+    author: String,
+    followers: u16,
+    time: u32,
+    readme: Option<String>,
+    repo: Option<String>,
+    demo: Option<String>,
+    updates: Vec<Summer2025IndividualUpdate>,
+}
+// test
+
+
+
+#[derive(Deserialize, Serialize, Debug, Clone)]
+pub struct Summer2025IndividualUpdate {
+    time: u32,
+    message: String,
+    image: Option<String>,
+}
+impl DatabasePage for Summer2025MainPage {
+    fn rank(&self, query: &String) -> f32 {
+        let query = query.to_lowercase();
+        let mut rank = 0.0;
+        
+        for (i, word) in query.replace('-', " ").split_whitespace().enumerate() {
+            let word_scale =  0.45 + 0.55 * (-0.2231 * i as f32).exp();
+
+            rank += self.name
+                .to_lowercase()
+                .split_whitespace()
+                .filter(|s| s.contains(&word))
+                .count() as f32 * 5.11 * word_scale;
+
+            rank += self.description
+                .to_lowercase()
+                .split_whitespace()
+                .filter(|s| s.contains(&word))
+                .count() as f32 * 3.27 * word_scale;
+        }
+        // yes
+        if rank > 1.0 {
+            for word in query.replace('-', " ").split_whitespace() {
+                for devlog in self.updates.clone() {
+                    if devlog.message.to_lowercase().contains(word) {
+                        rank += 0.9652;
+                    }
+                }
+            }
+        }
+        if rank < 1.0 {
+            rank -= 50.0;
+        }
+        if self.time < 1000 {
+            rank -= 1.0;
+        }
+        if self.description.contains('—') { // em dash
+            rank -= 0.8;
+        }
+        rank += (self.description.len() as f32 / 90.0).sqrt().min(1.2);
+        rank += (self.updates.len() as f32 / 9.0).sqrt().min(2.3);
+        rank += ((self.followers as f32 / 4.5)).min(4.3);
+        rank += (self.time as f32 / 8_000.0).min(4.6);
+
+        if let Some(_) = &self.demo {
+            rank += 0.85;
+        }
+
+        rank
+    }
+    
+    fn unique_string(&self) -> String {
+        return self.url.clone();
+    }
+    fn preview(&self) -> GenericPreviewSearchData {
+        GenericPreviewSearchData {
+            img: self.main_image.clone(),
+            name: self.name.clone(),
+            description: self.description.clone(),
+            props: format!("updates: {}", self.updates.len()),
+        }
+    }
+}
+
+
+

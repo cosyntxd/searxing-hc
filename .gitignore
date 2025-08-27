@@ -1,1 +1,7 @@
+__pycache__
+_no_commit
+target
+Cargo.lock
+cookies.txt
+complete_database.json
 .DS_Store
