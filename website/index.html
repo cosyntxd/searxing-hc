@@ -1,0 +1,732 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Searxing Hackclub</title>
+    <style>
+        /* really nice font but numbers arent legible, but thats user's issue */
+        @import url('https://fonts.googleapis.com/css2?family=Jersey+15&family=Pixelify+Sans:wght@400..700&display=swap');
+
+        :root {
+            --background-color: rgba(230, 198, 142, 255);
+            --text-color: #583c28;
+            --card-background: #f5d9a5;
+            --card-hover-background: #ffe6ba;
+            --button-primary-color: #a06e3d;
+            --button-hover-color: #c48c4a;
+            --image-placeholder-color: #d49d50;
+            --image-error-text-color: #8c4632;
+            --image-error-background: #e6b29d;
+            --border-color: #583c28;
+            --border-thickness: 3px;
+            --button-border-thickness: 2px;
+
+            --main-font: "Pixelify Sans", sans-serif;
+            --stats-font: "Jersey 15", sans-serif;
+            --fallback-stats-font: Arial, sans-serif;
+        }
+
+        body {
+            font-family: var(--main-font);
+            background-color: var(--background-color);
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            color: var(--text-color);
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+            font-optical-sizing: auto;
+            font-weight: 500;
+            font-style: normal;
+        }
+
+        .container {
+            flex-grow: 1;
+            padding: 10px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .project-grid {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 20px;
+            max-width: 3000px;
+            width: 100%;
+        }
+
+        /* Search Bar and Button in grid flow */
+        .search-area-card {
+            background-color: transparent;
+            flex: 0 0 calc(100% - 20px);
+            max-width: 3000px;
+            box-sizing: border-box;
+
+            padding: 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+            position: relative;
+        }
+
+        .search-bar {
+            flex-grow: 1;
+            margin-right: 10px;
+        }
+
+        .search-bar input {
+            width: calc(100% - 20px);
+            padding: 7px;
+            font-family: var(--main-font);
+            font-size: 0.75em;
+            border: var(--button-border-thickness) solid var(--border-color);
+            background-color: #d8c28f;
+            color: var(--text-color);
+            box-sizing: border-box;
+            &::placeholder {
+                color: var(--text-color);
+                opacity: 0.7;
+            }
+            &::-webkit-input-placeholder {
+                color: var(--text-color);
+                opacity: 0.7;
+            }
+            &::-ms-input-placeholder {
+                color: var(--text-color);
+                opacity: 0.7;
+            }
+            outline: none;
+        }
+
+        .search-button {
+            background-color: var(--button-primary-color);
+            border: var(--button-border-thickness) solid var(--border-color);
+            padding: 6px 10px;
+            font-family: var(--main-font);
+            font-size: 0.7em;
+            color: #fff;
+            cursor: pointer;
+            text-transform: uppercase;
+            transition: background-color 0.1s ease-in-out;
+        }
+
+        .search-button:hover {
+            background-color: var(--button-hover-color);
+        }
+
+        .project-card {
+            background-color: var(--card-background);
+            width: 220px;
+            height: 280px;
+            flex-shrink: 0;
+            flex-grow: 0;
+            
+            box-sizing: border-box;
+            position: relative;
+            padding: 10px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+
+            transition: transform 0.2s ease-out, background-color 0.2s ease-out;
+            z-index: 1;
+            transform-origin: center center;
+            cursor: pointer;
+        }
+
+        .project-card:hover {
+            transform: scale(1.05);
+            background-color: var(--card-hover-background);
+            z-index: 10;
+        }
+        
+        /* pixel border without the corner thing */
+        .project-card::before {
+            content: '';
+            position: absolute;
+            top: calc(0px - var(--border-thickness));
+            left: calc(0px - var(--border-thickness));
+            right: calc(0px - var(--border-thickness));
+            bottom: calc(0px - var(--border-thickness));
+            border: var(--border-thickness) solid var(--border-color);
+
+            border-image: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="9" height="9" fill="%23583c28"><rect x="3" y="0" width="3" height="3"/><rect x="0" y="3" width="3" height="3"/><rect x="6" y="3" width="3" height="3"/><rect x="3" y="6" width="3" height="3"/></svg>') 3 fill stretch;
+            border-image-outset: 0;
+            z-index: -1;
+            box-sizing: border-box;
+        }
+
+        /* fallback */
+        @supports not (border-image-source: url()) {
+            .project-card::before {
+                border-image: none;
+                border: var(--border-thickness) solid var(--border-color);
+                clip-path: none;
+            }
+        }
+
+        .project-card .image-container {
+            width: 100%;
+            padding-top: 50%; /* 2:1 aspect ratio */
+            position: relative;
+            margin-bottom: 6px;
+            border: var(--button-border-thickness) solid var(--border-color);
+            box-sizing: border-box;
+            overflow: hidden;
+            background-color: var(--image-placeholder-color); /* fallback background for placeholder */
+        }
+
+        .project-card .image-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            padding: 5px;
+            box-sizing: border-box;
+            word-break: break-word;
+            white-space: normal;
+            font-size: 0.6em;
+            color: var(--text-color);
+            text-align: center;
+            background-color: var(--image-placeholder-color);
+            z-index: 2;
+            transition: opacity 0.4s ease-in-out;
+        }
+
+        /* error message */
+        .project-card .image-overlay.image-error-message {
+            font-size: 0.8em;
+            font-weight: 700;
+            line-height: 1.2;
+            color: var(--image-error-text-color);
+            background-color: var(--image-error-background);
+            z-index: 4;
+            opacity: 1;
+        }
+
+        .project-card img {
+            display: block;
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            image-rendering: pixelated;
+            opacity: 0; /* starts hidden */
+            transition: opacity 0.3s ease-in-out;
+            z-index: 1; /* below the overlay when not loaded */
+        }
+        .project-card img.loaded {
+            opacity: 1; /* visible */
+            z-index: 3;
+        }
+
+        .project-card .info-container {
+            padding: 5px 0;
+            box-sizing: border-box;
+            width: 100%;
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-start;
+        }
+
+        .project-card .title-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 2px;
+        }
+
+        .project-card h3 {
+            margin: 0;
+            font-size: 0.9em;
+            color: var(--text-color);
+            text-align: left;
+            flex-shrink: 1;
+            min-width: 0;
+            white-space: normal;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            display: -webkit-box;
+            padding-left: 5px;
+        }
+
+        .project-card .stats {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            font-size: 0.55em;
+            color: var(--text-color);
+            text-align: right;
+            flex-shrink: 0;
+            margin-left: 6px;
+            line-height: 1.0;
+            font-family: var(--stats-font), var(--fallback-stats-font); 
+            font-weight: normal; 
+        }
+
+        .project-card .stats div {
+            margin-bottom: 0;
+        }
+
+        .project-card p {
+            font-size: 0.75em;
+            line-height: 1.3;
+            margin-bottom: 0;
+            text-align: left;
+            padding-left: 5px;
+            padding-right: 5px;
+            display: -webkit-box;
+            -webkit-line-clamp: 5;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        @media (max-width: 2500px) {
+            .project-grid {
+                max-width: 1900px;
+            }
+        }
+
+        @media (max-width: 2000px) {
+            .project-grid {
+                max-width: 1420px;
+            }
+        }
+
+        @media (max-width: 1700px) {
+            .project-grid {
+                max-width: 1180px;
+            }
+        }
+
+        @media (max-width: 1400px) {
+            .project-grid {
+                max-width: 940px;
+            }
+        }
+
+        @media (max-width: 1050px) {
+            .project-grid {
+                max-width: 700px;
+            }
+        }
+
+        @media (max-width: 750px) {
+            .project-grid {
+                max-width: 460px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .project-grid {
+                width: calc(100% - 20px);
+                max-width: 300px;
+            }
+            .project-card {
+                width: calc(100% - 20px);
+                max-width: 300px;
+                height: auto;
+                min-height: 280px;
+            }
+            .search-area-card {
+                flex-direction: column;
+                align-items: flex-start;
+                flex: 0 0 calc(100% - 20px);
+            }
+            .search-bar {
+                width: 100%;
+                margin-right: 0;
+                margin-bottom: 8px;
+            }
+            .search-bar input {
+                width: calc(100% - 20px);
+            }
+            .search-button {
+                width: auto;
+                margin-left: 0;
+            }
+        }
+
+        /* iframe */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.7);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            visibility: hidden;
+            opacity: 0;
+            transition: visibility 0.3s ease-out, opacity 0.3s ease-out;
+        }
+
+        .modal-overlay.active {
+            visibility: visible;
+            opacity: 1;
+        }
+
+        .modal-content {
+            background-color: var(--card-background);
+            border: var(--border-thickness) solid var(--border-color);
+            width: 90%;
+            max-width: 800px;
+            height: 90%;
+            max-height: 600px;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            padding: 0;
+            box-sizing: border-box;
+            transform: scale(0.9);
+            transition: transform 0.3s ease-out;
+        }
+
+        .modal-overlay.active .modal-content {
+            transform: scale(1);
+        }
+
+        .modal-close {
+            position: absolute;
+            top: calc(0px - var(--button-border-thickness));
+            right: calc(0px - var(--button-border-thickness));
+            
+            background: var(--button-primary-color);
+            border: var(--button-border-thickness) solid var(--border-color);
+            width: 26px;
+            height: 26px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            
+            font-size: 1.3em;
+            font-weight: bold;
+            color: #fff;
+            cursor: pointer;
+            z-index: 1010;
+            transition: background-color 0.2s ease-in-out, color 0.2s ease-in-out;
+            line-height: 1;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        .modal-close:hover {
+            background-color: var(--button-hover-color);
+            color: var(--text-color);
+        }
+
+        .modal-iframe {
+            flex-grow: 1;
+            border: none;
+            width: 100%;
+            height: 100%;
+            padding: 10px;
+            box-sizing: border-box;
+            background-color: #d8c28f;
+        }
+    </style>
+    <!-- ty chatgpt for help with that css -->
+    <!-- slightly broken on safari but thats apple's fault -->
+</head>
+<body>
+    <div class="container">
+        <div class="project-grid" id="projectGrid">
+            <div class="search-area-card">
+                <div class="search-bar">
+                    <input type="text" id="searchInput" placeholder="Search projects...">
+                </div>
+                <button class="search-button" id="searchButton">Search</button>
+            </div>
+            </div>
+    </div>
+
+    <div class="modal-overlay" id="iframeModalOverlay">
+        <div class="modal-content">
+            <button class="modal-close" id="modalCloseButton">&times;</button>
+            <iframe id="projectIframe" class="modal-iframe" frameborder="0"></iframe>
+        </div>
+    </div>
+
+    <script>
+        const projectGrid = document.getElementById('projectGrid');
+        const searchInput = document.getElementById('searchInput');
+        const searchButton = document.getElementById('searchButton');
+        const iframeModalOverlay = document.getElementById('iframeModalOverlay');
+        const projectIframe = document.getElementById('projectIframe');
+        const modalCloseButton = document.getElementById('modalCloseButton');
+        
+        const loadingObserver = new IntersectionObserver((entries, observer) => {
+            entries.forEach(entry => {
+                const img = entry.target;
+                const imageContainer = img.closest('.image-container');
+                const imageOverlay = imageContainer.querySelector('.image-overlay');
+
+                if (entry.isIntersecting && img.dataset.imageStatus !== 'loaded' && img.dataset.imageStatus !== 'loading' && img.dataset.imageStatus !== 'error') {
+                    img.dataset.imageStatus = 'loading';
+
+                    const srcToLoad = img.dataset.src;
+                    
+                    // oopsies
+                    if (!srcToLoad) {
+                        img.src = '';
+                        img.classList.remove('loaded');
+                        imageOverlay.classList.add('image-error-message');
+                        imageOverlay.textContent = 'Image source missing!';
+                        imageOverlay.style.opacity = '1';
+                        imageOverlay.style.display = 'flex';
+                        img.dataset.imageStatus = 'error';
+                        observer.unobserve(img); // stop observing bc no image to load
+                        return;
+                    }
+
+                    const tempImg = new Image(); // temp image to handle load/error events
+                    tempImg.src = srcToLoad;
+
+                    tempImg.onload = () => {
+                        img.src = srcToLoad;
+                        img.classList.add('loaded');
+                        imageOverlay.style.opacity = '0';
+                        setTimeout(() => {
+                            imageOverlay.style.display = 'none';
+                        }, 200);
+                        imageOverlay.classList.remove('image-error-message'); // clean up error styles
+                        img.dataset.imageStatus = 'loaded';
+
+                        observer.unobserve(img); // stop observing for load
+                        unloadingObserver.observe(img); // start observing with unload
+                    };
+
+                    tempImg.onerror = () => {
+                        img.src = '';
+                        img.classList.remove('loaded');
+                        imageOverlay.style.opacity = '1';
+                        imageOverlay.style.display = 'flex';
+                        imageOverlay.classList.add('image-error-message');
+                        imageOverlay.textContent = 'Image missing!';
+                        img.dataset.imageStatus = 'error';
+                        observer.unobserve(img);
+                    };
+                }
+            });
+        }, {
+            rootMargin: '120% 0px' // load when 1.2 screen height off-screen
+        });
+
+        const unloadingObserver = new IntersectionObserver((entries, observer) => {
+            entries.forEach(entry => {
+                const img = entry.target;
+                const imageContainer = img.closest('.image-container');
+                const imageOverlay = imageContainer.querySelector('.image-overlay');
+
+                if (!entry.isIntersecting && img.dataset.imageStatus === 'loaded') {
+                    img.src = '';
+                    img.classList.remove('loaded');
+                    imageOverlay.style.opacity = '1';
+                    imageOverlay.style.display = 'flex';
+                    imageOverlay.classList.remove('image-error-message');
+                    imageOverlay.textContent = 'Loading image...';
+                    img.dataset.imageStatus = 'unloaded';
+
+                    observer.unobserve(img); // stop observing with unloading
+                    loadingObserver.observe(img); // start observing with loading
+                }
+            });
+        }, {
+            rootMargin: '600% 0px' // takes a while to unload because ram is cheaper than network
+        });
+
+
+        function createProjectCard(project) {
+            const card = document.createElement('div');
+            card.classList.add('project-card');
+            card.dataset.id = project.id; 
+            // todo: use custom ui and not rely on SoM
+            // card.addEventListener('click', () => openProjectIframe(project.id));
+            card.addEventListener('click', () => window.open(project.event, '_blank'));
+
+            const imageContainer = document.createElement('div');
+            imageContainer.classList.add('image-container');
+
+            // for placeholder text and error messages
+            const imageOverlay = document.createElement('div');
+            imageOverlay.classList.add('image-overlay');
+            imageOverlay.textContent = "Loading image..."; 
+            
+            // actual image
+            const img = document.createElement('img');
+            img.dataset.src = project.page.img; 
+            img.alt = `${project.page.name} Image`;
+            img.dataset.imageStatus = 'initial'; // default status
+
+            imageContainer.appendChild(imageOverlay); // overlay first
+            imageContainer.appendChild(img); // image second
+
+            const infoContainer = document.createElement('div');
+            infoContainer.classList.add('info-container');
+
+            const titleRow = document.createElement('div');
+            titleRow.classList.add('title-row');
+
+            const titleElement = document.createElement('h3');
+
+            titleElement.textContent = project.page.name;
+
+            const stats = document.createElement('div');
+            stats.classList.add('stats');
+            // todo: figure out later
+            stats.innerHTML = `
+                <div>Hours: 0</div>
+                <div>Updates: 0</div>
+                <div>Followers: 0</div>
+            `;
+
+            titleRow.appendChild(titleElement);
+            titleRow.appendChild(stats);
+
+            const descriptionElement = document.createElement('p');
+
+            descriptionElement.textContent = project.page.description;
+
+            infoContainer.appendChild(titleRow);
+            infoContainer.appendChild(descriptionElement);
+
+            card.appendChild(imageContainer);
+            card.appendChild(infoContainer);
+
+            // start observing the image for lazy loading
+            loadingObserver.observe(img); 
+
+            return card;
+        }
+
+        function openProjectIframe(projectId) {
+            projectIframe.src = `project_details.html?id=${projectId}`; 
+            iframeModalOverlay.classList.add('active'); 
+            document.body.style.overflow = 'hidden'; 
+        }
+
+        function closeProjectIframe() {
+            iframeModalOverlay.classList.remove('active'); 
+            projectIframe.src = ''; 
+            document.body.style.overflow = ''; 
+        }
+        // close button and overlay click
+        modalCloseButton.addEventListener('click', closeProjectIframe);
+        iframeModalOverlay.addEventListener('click', (event) => {
+            if (event.target === iframeModalOverlay) {
+                closeProjectIframe();
+            }
+        });
+
+        function clearProjectCards() {
+            const searchAreaCard = document.querySelector('.search-area-card');
+            Array.from(projectGrid.querySelectorAll('.project-card img')).forEach(img => {
+                loadingObserver.unobserve(img); // unobserve from both observers
+                unloadingObserver.unobserve(img);
+            });
+            Array.from(projectGrid.children).forEach(child => {
+                if (child !== searchAreaCard) {
+                    child.remove();
+                }
+            });
+        }
+        // todo: not actually incremental
+        async function renderProjectsIncrementally(projectsToRender) {
+            clearProjectCards();
+
+            if (projectsToRender.length === 0) {
+                const noResultsMessage = document.createElement('p');
+                noResultsMessage.style = "text-align: center; font-size: 1.1em; color: var(--button-primary-color); flex: 0 0 100%; margin-top: 15px;";
+                noResultsMessage.textContent = 'No projects found matching your search.';
+                projectGrid.appendChild(noResultsMessage);
+                return;
+            }
+
+            const fragment = document.createDocumentFragment();
+            for (const project of projectsToRender) {
+                fragment.appendChild(createProjectCard(project));
+            }
+            projectGrid.appendChild(fragment);
+        }
+        
+        async function fetchProjects(searchTerm = '') {
+            let url = `${window.location.hostname}:6552/query`;
+
+            url += `?q=${encodeURIComponent(searchTerm)}`;
+            try {
+                const response = await fetch(url);
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                const projects = await response.json(); 
+                
+                await renderProjectsIncrementally(projects); 
+
+            } catch (error) {
+                console.error('Could not fetch projects:', error);
+                clearProjectCards(); 
+                const errorMessage = document.createElement('p');
+                errorMessage.style = "text-align: center; font-size: 1.0em; color: var(--button-primary-color); flex: 0 0 100%; margin-top: 15px;";
+                errorMessage.textContent = 'Failed to load projects. Please ensure the Rust server is running';
+                projectGrid.appendChild(errorMessage);
+            }
+        }
+
+        function parseHashAndSearch() {
+            const hash = window.location.hash;
+            if (hash.startsWith('#query=')) {
+                const searchTermFromHash = decodeURIComponent(hash.substring(7));
+                searchInput.value = searchTermFromHash;
+                fetchProjects(searchTermFromHash);
+            } else {
+                fetchProjects(); // initial load w/o search term
+            }
+        }
+
+        function handleSearch() {
+            const searchTerm = searchInput.value;
+            if (searchTerm) {
+                window.location.hash = `#query=${encodeURIComponent(searchTerm)}`;
+            } else {
+                window.location.hash = ''; //clear
+            }
+            fetchProjects(searchTerm);
+        }
+
+        searchButton.addEventListener('click', handleSearch);
+        searchInput.addEventListener('keyup', (event) => {
+            if (event.key === 'Enter') {
+                handleSearch();
+            }
+        });
+
+        document.addEventListener('DOMContentLoaded', () => {
+            parseHashAndSearch(); 
+        });
+
+        window.addEventListener('hashchange', () => {
+            parseHashAndSearch();
+        });
+    </script>
+</body>
+</html>
