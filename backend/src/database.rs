@@ -6,24 +6,36 @@ use std::{
     sync::RwLock,
     time::Instant,
 };
-
+use serde::{self, Deserialize, Serialize};
+use bumpalo::Bump;
 use ordered_float::OrderedFloat;
 
 use crate::data::{
-    DatabasePage, DetailedSearchResult, ExtraData, ScrapedMainPageEnum, ScrapedPage,
+    ComputedData, DatabasePage, DetailedSearchResult, ScrapedMainPageEnum, UniqueString
 };
-
+#[derive(Serialize, Deserialize, Debug, Default)]
+struct UnderlyingData {
+    pub raw_text: Vec<ScrapedMainPageEnum>,
+    pub processed: Vec<Option<ComputedData>>,
+    pub length: usize,
+}
 pub struct Database {
-    pub raw_data: RwLock<Vec<ScrapedPage>>,
-    pub relational: HashMap<String, usize>,
+    pub raw_data: RwLock<UnderlyingData>,
+    pub relational: HashMap<UniqueString, usize>,
+    // pub arena_allocator: Bump,
     pub file_location: &'static str,
 }
 
 impl Database {
     pub fn new_non_backed() -> Database {
         Database {
-            raw_data: RwLock::new(vec![]),
+            raw_data: RwLock::new(UnderlyingData {
+                raw_text: vec![],
+                processed: vec![],
+                length: 0,
+            }),
             relational: HashMap::new(),
+            // arena_allocator: Bump::new(),
             file_location: "",
         }
     }
@@ -45,17 +57,18 @@ impl Database {
             }
         };
         // why tf cant type be infered, lsp knows but not rustc
-        let raw_data: Vec<ScrapedPage> = raw_data_from_file.unwrap_or_default();
+        let raw_data: UnderlyingData = raw_data_from_file.unwrap_or_default();
 
         let mut relational = HashMap::new();
 
-        for (i, entry) in raw_data.iter().enumerate() {
-            relational.insert(entry.page.unique_string(), i);
+        for (i, entry) in raw_data.raw_text.iter().enumerate() {
+            relational.insert(entry.unique_string(), i);
         }
 
         Database {
             raw_data: RwLock::new(raw_data),
             relational,
+            // arena_allocator: Bump::new(),
             file_location: name,
         }
     }
@@ -67,22 +80,16 @@ impl Database {
         let mut file = fs::File::create(self.file_location).unwrap();
         file.write_all(json_string.as_bytes()).unwrap();
     }
+
     pub fn add_entry(&self, entry: ScrapedMainPageEnum) {
         let mut data = self.raw_data.write().unwrap();
-
-        let page = ScrapedPage {
-            page: entry.clone(),
-            extra: ExtraData {
-                embedding: [0.0; 768],
-                score_multiplier: 1.0,
-                embed_good: false,
-            },
-        };
-
         if let Some(existing_idx) = self.relational.get(&entry.unique_string()) {
-            data[*existing_idx] = page;
+            data.raw_text[*existing_idx] = entry;
+            data.processed[*existing_idx] = None;
         } else {
-            data.push(page);
+            data.raw_text.push(entry);
+            data.processed.push(None);
+            data.length += 1;
         }
     }
     pub fn search_and_rank_json(&self, query: String, k: usize) -> String {
@@ -90,8 +97,11 @@ impl Database {
         let mut min_heap: BinaryHeap<Reverse<(OrderedFloat<f32>, usize)>> =
             BinaryHeap::with_capacity(50);
 
-        for (i, page) in data.iter().enumerate() {
-            let current_rank = OrderedFloat(page.page.rank(&query));
+        for i in 0..data.length {
+            let page = &data.raw_text[i];
+            let extra = &data.processed[i];
+
+            let current_rank = OrderedFloat(page.rank(&query));
             if current_rank.0 < 0.0 && !query.is_empty() {
                 continue;
             }
@@ -118,25 +128,14 @@ impl Database {
             .map(|(rank, original_index)| DetailedSearchResult {
                 rank: rank.0,
                 id: original_index,
-                event: data[original_index].page.unique_string(),
-                page: data[original_index].page.preview(),
+                event: data.raw_text[original_index].unique_string().0,
+                page: data.raw_text[original_index].preview(),
             })
             .collect::<Vec<DetailedSearchResult>>();
 
         serde_json::to_string_pretty(&top_pages).unwrap()
     }
+    pub fn set_extras(&self, index: usize, computed: ComputedData) {
 
-    pub fn set_multiplier(&self, index: usize, score: f32) {
-        let mut data = self.raw_data.write().unwrap();
-        assert!(index < data.len());
-        data[index].extra.score_multiplier = score;
-    }
-    pub fn set_embedding(&self, index: usize, embed: Vec<f32>) {
-        let mut data = self.raw_data.write().unwrap();
-        assert!(index < data.len());
-        let target = &mut data[index].extra;
-        assert!(target.embedding.len() == embed.len());
-        target.embed_good = true;
-        target.embedding = embed.try_into().unwrap();
     }
 }

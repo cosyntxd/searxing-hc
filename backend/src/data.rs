@@ -7,6 +7,7 @@ pub struct DetailedSearchResult {
     pub id: usize,
     pub rank: f32,
     pub event: String,
+    // generated per event
     pub page: GenericPreviewSearchData,
 }
 
@@ -18,32 +19,25 @@ pub struct GenericPreviewSearchData {
     pub props: String,
 }
 
-#[derive(Deserialize, Serialize, Debug)]
-pub struct ScrapedPage {
-    pub page: ScrapedMainPageEnum,
-    pub extra: ExtraData,
-}
-
-#[derive(Deserialize, Serialize, Debug)]
-pub struct ExtraData {
-    // #[serde(with = "BigArray")]
-    // pub dirty_embedding: [f32; 96]
+#[derive(Deserialize, Serialize, Debug, Clone)]
+pub struct ComputedData {
     #[serde(with = "BigArray")]
-    pub embedding: [f32; 768], // 384 is nicer
-    pub score_multiplier: f32,
-    pub embed_good: bool,
+    pub embedding: [f32; 768],
+    pub ai_description: f32,
+    pub ai_code: f32,
 }
+#[derive(Eq, Hash, PartialEq)]
+pub struct UniqueString(pub String);
 
 #[enum_dispatch]
 pub trait DatabasePage {
-    fn rank(&self, query: &String) -> f32;
-    fn unique_string(&self) -> String;
     fn preview(&self) -> GenericPreviewSearchData;
+    fn unique_string(&self) -> UniqueString;
+    fn rank(&self, query: &String) -> f32;
 }
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
 #[enum_dispatch(DatabasePage)]
-
 pub enum ScrapedMainPageEnum {
     Journey2025(Journey2025MainPage),
     Summer2025(Summer2025MainPage),
@@ -76,8 +70,8 @@ impl DatabasePage for Journey2025MainPage {
         self.followers as f32 + self.stonks as f32 * 0.2
     }
 
-    fn unique_string(&self) -> String {
-        format!("{}", self.id)
+    fn unique_string(&self) -> UniqueString {
+        UniqueString(format!("{}", self.id))
     }
     fn preview(&self) -> GenericPreviewSearchData {
         todo!()
@@ -165,8 +159,8 @@ impl DatabasePage for Summer2025MainPage {
         rank
     }
 
-    fn unique_string(&self) -> String {
-        return self.url.clone();
+    fn unique_string(&self) -> UniqueString {
+        UniqueString(self.url.clone())
     }
     fn preview(&self) -> GenericPreviewSearchData {
         GenericPreviewSearchData {

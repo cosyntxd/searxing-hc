@@ -72,8 +72,7 @@ async fn add_data(
     app_state.data.add_entry(entry);
 
     let response_message = format!(
-        "Approx size of db: {}",
-        app_state.data.raw_data.read().unwrap().len()
+        "Approx size of db: {}", -1
     );
 
     (StatusCode::OK, response_message).into_response()
@@ -100,28 +99,28 @@ async fn get_preview(
     State(app_state): State<Arc<AppState>>,
     Query(payload): Query<GetPreviewRequest>,
 ) -> impl IntoResponse {
-    let db_load_start = Instant::now();
-    let data_guard = app_state.data.raw_data.read().unwrap();
-    if payload.uuid >= data_guard.len() {
-        return (StatusCode::NOT_FOUND, "UUID not found".to_string()).into_response();
-    }
-    let page = &data_guard[payload.uuid].page.clone();
-    drop(data_guard);
+    // let db_load_start = Instant::now();
+    // let data_guard = app_state.data.raw_data.read().unwrap();
+    // if payload.uuid >= data_guard.length {
+    //     return (StatusCode::NOT_FOUND, "UUID not found".to_string()).into_response();
+    // }
+    // let page = &data_guard.raw_text[payload.uuid].clone();
+    // drop(data_guard);
 
-    match serde_json::to_string(page) {
-        Ok(json) => {
-            println!("loaded preview in: {:?}", db_load_start.elapsed());
-            (StatusCode::OK, json).into_response()
-        }
-        Err(e) => {
-            eprintln!("Failed to serialize page preview: {}", e);
-            (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                "Failed to serialize preview".to_string(),
-            )
-                .into_response()
-        }
-    }
+    // match serde_json::to_string(page) {
+    //     Ok(json) => {
+    //         println!("loaded preview in: {:?}", db_load_start.elapsed());
+    //         (StatusCode::OK, json).into_response()
+    //     }
+    //     Err(e) => {
+    //         eprintln!("Failed to serialize page preview: {}", e);
+    //         (
+    //             StatusCode::INTERNAL_SERVER_ERROR,
+    //             "Failed to serialize preview".to_string(),
+    //         )
+    //             .into_response()
+    //     }
+    // }
 }
 
 #[derive(Deserialize, Serialize, Debug)]
@@ -139,26 +138,11 @@ async fn set_extras(
         return (StatusCode::UNAUTHORIZED, "Invalid secret".to_string()).into_response();
     }
 
-    if payload.id >= app_state.data.raw_data.read().unwrap().len() {
-        return (StatusCode::NOT_FOUND, "ID not found".to_string()).into_response();
-    }
+    // if payload.id >= app_state.data.raw_data.read().unwrap().length {
+    //     return (StatusCode::NOT_FOUND, "ID not found".to_string()).into_response();
+    // }
 
-    if let Some(multiplier) = payload.score_multiplier {
-        app_state.data.set_multiplier(payload.id, multiplier);
-    }
-
-    if let Some(embedding) = payload.embedding {
-        if embedding.len() != 1536 {
-            return (
-                StatusCode::BAD_REQUEST,
-                "Embedding must be of length 1536".to_string(),
-            )
-                .into_response();
-        }
-        app_state.data.set_embedding(payload.id, embedding);
-    }
-
-    (StatusCode::OK, "Extras updated successfully".to_string()).into_response()
+    todo!()
 }
 
 #[tokio::main]
@@ -202,7 +186,7 @@ async fn main() {
         .with_state(Arc::clone(&state))
         .layer(cors_layer);
 
-    tokio::spawn(periodic_saves(Arc::clone(&state)));
+    // tokio::spawn(periodic_saves(Arc::clone(&state)));
 
     tokio::spawn(async move {
         signal::ctrl_c().await.expect("failed to listen for ctrl_c");
