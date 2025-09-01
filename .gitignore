@@ -3,5 +3,6 @@ _no_commit
 target
 Cargo.lock
 cookies.txt
-complete_database.json
+data
+!data/.gitkeep
 .DS_Store
