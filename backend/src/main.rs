@@ -4,31 +4,25 @@ pub mod links;
 use axum::http::StatusCode;
 use axum::{
     Json, Router,
-    extract::{Path, Query, State},
+    extract::{Query, State},
     http::{
         HeaderValue, Method,
         header::{ACCEPT, AUTHORIZATION, CONTENT_TYPE},
     },
-    response::{Html, IntoResponse},
+    response::IntoResponse,
     routing::{get, get_service, post},
 };
 use serde::{Deserialize, Serialize};
 use std::{
     env,
-    net::SocketAddr,
-    path::PathBuf,
     process::exit,
     sync::Arc,
     time::{Duration, Instant},
 };
-use tokio::net::{UnixListener, UnixStream, unix::UCred};
-use tokio::{net::TcpListener, signal, time};
+use tokio::{signal, time};
 use tower_http::{cors::CorsLayer, services::ServeDir};
 
-use crate::{
-    data::{ScrapedMainPageEnum, Summer2025MainPage},
-    database::Database,
-};
+use crate::{data::ScrapedMainPageEnum, database::Database};
 
 struct AppState {
     data: Database,
@@ -71,9 +65,7 @@ async fn add_data(
 
     app_state.data.add_entry(entry);
 
-    let response_message = format!(
-        "Approx size of db: {}", -1
-    );
+    let response_message = format!("Approx size of db: {}", -1);
 
     (StatusCode::OK, response_message).into_response()
 }

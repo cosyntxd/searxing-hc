@@ -1,17 +1,15 @@
+use ordered_float::OrderedFloat;
+use serde::{self, Deserialize, Serialize};
 use std::{
     cmp::Reverse,
     collections::{BinaryHeap, HashMap},
     fs::{self, File},
     io::Write,
     sync::RwLock,
-    time::Instant,
 };
-use serde::{self, Deserialize, Serialize};
-use bumpalo::Bump;
-use ordered_float::OrderedFloat;
 
 use crate::data::{
-    ComputedData, DatabasePage, DetailedSearchResult, ScrapedMainPageEnum, UniqueString
+    ComputedData, DatabasePage, DetailedSearchResult, ScrapedMainPageEnum, UniqueString,
 };
 #[derive(Serialize, Deserialize, Debug, Default)]
 struct UnderlyingData {
@@ -109,11 +107,9 @@ impl Database {
 
             if min_heap.len() < k {
                 min_heap.push(heap_item);
-            } else {
-                if current_rank > min_heap.peek().unwrap().0.0 {
-                    min_heap.pop();
-                    min_heap.push(heap_item);
-                }
+            } else if current_rank > min_heap.peek().unwrap().0.0 {
+                min_heap.pop();
+                min_heap.push(heap_item);
             }
         }
         let mut top_page_info: Vec<(OrderedFloat<f32>, usize)> = min_heap
@@ -135,7 +131,5 @@ impl Database {
 
         serde_json::to_string_pretty(&top_pages).unwrap()
     }
-    pub fn set_extras(&self, index: usize, computed: ComputedData) {
-
-    }
+    pub fn set_extras(&self, index: usize, computed: ComputedData) {}
 }

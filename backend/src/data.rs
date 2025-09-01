@@ -113,7 +113,7 @@ impl DatabasePage for Summer2025MainPage {
                 .name
                 .to_lowercase()
                 .split_whitespace()
-                .filter(|s| s.contains(&word))
+                .filter(|s| s.contains(word))
                 .count() as f32
                 * 5.11
                 * word_scale;
@@ -122,7 +122,7 @@ impl DatabasePage for Summer2025MainPage {
                 .description
                 .to_lowercase()
                 .split_whitespace()
-                .filter(|s| s.contains(&word))
+                .filter(|s| s.contains(word))
                 .count() as f32
                 * 3.27
                 * word_scale;
@@ -152,7 +152,7 @@ impl DatabasePage for Summer2025MainPage {
         rank += (self.followers as f32 / 4.5).min(4.3);
         rank += (self.time as f32 / 8_000.0).min(4.6);
 
-        if let Some(_) = &self.demo {
+        if self.demo.is_some() {
             rank += 0.85;
         }
 
