@@ -46,18 +46,18 @@ pub enum ScrapedMainPageEnum {
 // Journey 2025
 #[derive(Deserialize, Serialize, Debug, Default, Clone)]
 pub struct Journey2025MainPage {
-    id: u32,
-    main_image: String,
-    name: String,
-    description: String,
-    author: String,
-    followers: u16,
-    stonks: u16,
-    time: String,
-    readme: Option<String>,
-    repo: Option<String>,
-    demo: Option<String>,
-    updates: Vec<Journey2025IndividualUpdate>,
+    pub id: u32,
+    pub main_image: String,
+    pub name: String,
+    pub description: String,
+    pub author: String,
+    pub followers: u16,
+    pub stonks: u16,
+    pub time: String,
+    pub readme: Option<String>,
+    pub repo: Option<String>,
+    pub demo: Option<String>,
+    pub updates: Vec<Journey2025IndividualUpdate>,
 }
 #[derive(Deserialize, Serialize, Debug, Default, Clone)]
 pub struct Journey2025IndividualUpdate {
@@ -81,25 +81,25 @@ impl DatabasePage for Journey2025MainPage {
 // Summer of Making 2025
 #[derive(Deserialize, Serialize, Debug, Default, Clone)]
 pub struct Summer2025MainPage {
-    url: String,
-    main_image: String,
-    name: String,
-    description: String,
-    author: String,
-    followers: u16,
-    time: u32,
-    readme: Option<String>,
-    repo: Option<String>,
-    demo: Option<String>,
-    updates: Vec<Summer2025IndividualUpdate>,
+    pub url: String,
+    pub main_image: String,
+    pub name: String,
+    pub description: String,
+    pub author: String,
+    pub followers: u16,
+    pub time: u32,
+    pub readme: Option<String>,
+    pub repo: Option<String>,
+    pub demo: Option<String>,
+    pub updates: Vec<Summer2025IndividualUpdate>,
 }
-// test
+
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct Summer2025IndividualUpdate {
-    time: u32,
-    message: String,
-    image: Option<String>,
+    pub time: u32,
+    pub message: String,
+    pub image: Option<String>,
 }
 impl DatabasePage for Summer2025MainPage {
     fn rank(&self, query: &String) -> f32 {
