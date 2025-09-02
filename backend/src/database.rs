@@ -99,7 +99,7 @@ impl Database {
             let page = &data.raw_text[i];
             let extra = &data.processed[i];
 
-            let current_rank = OrderedFloat(page.rank(&query));
+            let current_rank = OrderedFloat(page.rank(&query, extra));
             if current_rank.0 < 0.0 && !query.is_empty() {
                 continue;
             }
