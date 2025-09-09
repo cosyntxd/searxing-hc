@@ -1,5 +1,7 @@
 use backend::{
-    data::{Journey2025MainPage, ScrapedMainPageEnum, Summer2025IndividualUpdate, Summer2025MainPage},
+    data::{
+        Journey2025MainPage, ScrapedMainPageEnum, Summer2025IndividualUpdate, Summer2025MainPage,
+    },
     database::Database,
 };
 use criterion::{Criterion, criterion_group, criterion_main};
@@ -36,8 +38,14 @@ fn bench_search(c: &mut Criterion) {
             image: None,
         };
         let summer_fake = Summer2025MainPage {
-            url: format!("https://hackclub.com/project/{}", fastrand::u32(0..99999999)),
-            main_image: format!("https://hackclub.com/project/{}", fastrand::u32(0..99999999)),
+            url: format!(
+                "https://hackclub.com/project/{}",
+                fastrand::u32(0..99999999)
+            ),
+            main_image: format!(
+                "https://hackclub.com/project/{}",
+                fastrand::u32(0..99999999)
+            ),
             name: fake_phrase(5),
             description: fake_phrase(150),
             author: format!("author-{}", fastrand::u32(0..99999999)),

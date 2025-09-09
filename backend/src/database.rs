@@ -1,3 +1,7 @@
+use bumpalo::Bump;
+use ollama_rs::generation::embeddings::request::GenerateEmbeddingsRequest;
+use ollama_rs::generation::parameters::{KeepAlive, TimeUnit};
+use ollama_rs::{Ollama, generation::embeddings::request::EmbeddingsInput};
 use ordered_float::OrderedFloat;
 use serde::{self, Deserialize, Serialize};
 use std::{
@@ -5,23 +9,25 @@ use std::{
     collections::{BinaryHeap, HashMap},
     fs::{self, File},
     io::Write,
-    sync::RwLock,
+    sync::{Mutex, RwLock},
 };
 
 use crate::data::{
     ComputedData, DatabasePage, DetailedSearchResult, ScrapedMainPageEnum, UniqueString,
 };
 #[derive(Serialize, Deserialize, Debug, Default)]
-struct UnderlyingData {
+pub struct UnderlyingData {
     pub raw_text: Vec<ScrapedMainPageEnum>,
     pub processed: Vec<Option<ComputedData>>,
     pub length: usize,
+    #[serde(skip)]
+    pub arena_allocator: Mutex<Bump>,
 }
 pub struct Database {
     pub raw_data: RwLock<UnderlyingData>,
     pub relational: HashMap<UniqueString, usize>,
-    // pub arena_allocator: Bump,
     pub file_location: &'static str,
+    pub ollama: Option<Ollama>,
 }
 
 impl Database {
@@ -31,10 +37,11 @@ impl Database {
                 raw_text: vec![],
                 processed: vec![],
                 length: 0,
+                arena_allocator: Mutex::new(Bump::new()),
             }),
             relational: HashMap::new(),
-            // arena_allocator: Bump::new(),
             file_location: "",
+            ollama: Some(Ollama::default()),
         }
     }
     pub fn load_file(name: &'static str) -> Database {
@@ -57,6 +64,9 @@ impl Database {
         // why tf cant type be infered, lsp knows but not rustc
         let raw_data: UnderlyingData = raw_data_from_file.unwrap_or_default();
 
+        assert!(raw_data.length == raw_data.processed.len());
+        assert!(raw_data.length == raw_data.raw_text.len());
+
         let mut relational = HashMap::new();
 
         for (i, entry) in raw_data.raw_text.iter().enumerate() {
@@ -66,8 +76,8 @@ impl Database {
         Database {
             raw_data: RwLock::new(raw_data),
             relational,
-            // arena_allocator: Bump::new(),
             file_location: name,
+            ollama: Some(Ollama::default()),
         }
     }
     pub fn save_json(&self) {
@@ -86,7 +96,11 @@ impl Database {
             data.processed[*existing_idx] = None;
         } else {
             data.raw_text.push(entry);
-            data.processed.push(None);
+            data.processed.push(Some(ComputedData {
+                embedding: self.compute_embeddings(vec!["bozo".into()])[0].clone().try_into().unwrap(),
+                ai_description: 0.0,
+                ai_code: 0.0,
+            }));
             data.length += 1;
         }
     }
@@ -130,6 +144,28 @@ impl Database {
             .collect::<Vec<DetailedSearchResult>>();
 
         serde_json::to_string_pretty(&top_pages).unwrap()
+    }
+
+    pub fn compute_embeddings(&self, text: Vec<String>) -> Vec<Vec<f32>> {
+        if self.ollama.is_none() {
+            return vec![vec![0.0;768]];
+        }
+
+        let request = GenerateEmbeddingsRequest::new(
+            "nomic-embed-text:v1.5".to_owned(),
+            EmbeddingsInput::Multiple((text)),
+        ).keep_alive(KeepAlive::Until { time: 5, unit: TimeUnit::Hours });
+
+        let rt = tokio::runtime::Runtime::new().unwrap();
+        let response = rt.block_on(async {
+            self.ollama
+                .as_ref()
+                .unwrap()
+                .generate_embeddings(request)
+                .await
+        }).expect("failed to call ollama embeddings");
+
+        return response.embeddings;
     }
     pub fn set_extras(&self, index: usize, computed: ComputedData) {}
 }
