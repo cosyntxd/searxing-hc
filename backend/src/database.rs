@@ -1,7 +1,4 @@
 use bumpalo::Bump;
-use ollama_rs::generation::embeddings::request::GenerateEmbeddingsRequest;
-use ollama_rs::generation::parameters::{KeepAlive, TimeUnit};
-use ollama_rs::{Ollama, generation::embeddings::request::EmbeddingsInput};
 use ordered_float::OrderedFloat;
 use serde::{self, Deserialize, Serialize};
 use std::{
@@ -12,9 +9,11 @@ use std::{
     sync::{Mutex, RwLock},
 };
 
-use crate::data::{
-    ComputedData, DatabasePage, DetailedSearchResult, ScrapedMainPageEnum, UniqueString,
+use crate::{
+    data::{ComputedData, DatabasePage, DetailedSearchResult, ScrapedMainPageEnum, UniqueString},
+    embedder::OllamaEmbedder,
 };
+
 #[derive(Serialize, Deserialize, Debug, Default)]
 pub struct UnderlyingData {
     pub raw_text: Vec<ScrapedMainPageEnum>,
@@ -27,7 +26,7 @@ pub struct Database {
     pub raw_data: RwLock<UnderlyingData>,
     pub relational: HashMap<UniqueString, usize>,
     pub file_location: &'static str,
-    pub ollama: Option<Ollama>,
+    pub ollama: OllamaEmbedder,
 }
 
 impl Database {
@@ -41,7 +40,7 @@ impl Database {
             }),
             relational: HashMap::new(),
             file_location: "",
-            ollama: Some(Ollama::default()),
+            ollama: OllamaEmbedder::new(),
         }
     }
     pub fn load_file(name: &'static str) -> Database {
@@ -77,7 +76,7 @@ impl Database {
             raw_data: RwLock::new(raw_data),
             relational,
             file_location: name,
-            ollama: Some(Ollama::default()),
+            ollama: OllamaEmbedder::new(),
         }
     }
     pub fn save_json(&self) {
@@ -95,12 +94,17 @@ impl Database {
             data.raw_text[*existing_idx] = entry;
             data.processed[*existing_idx] = None;
         } else {
+            let embed =self.ollama.generate_seqentially(entry.preview().description.into())
+                    .unwrap()[0]
+                    .clone()
+                    .try_into()
+                    .unwrap();
             data.raw_text.push(entry);
             data.processed.push(Some(ComputedData {
-                embedding: self.compute_embeddings(vec!["bozo".into()])[0].clone().try_into().unwrap(),
+                embedding: embed,
                 ai_description: 0.0,
                 ai_code: 0.0,
-            }));
+            })); //
             data.length += 1;
         }
     }
@@ -146,26 +150,5 @@ impl Database {
         serde_json::to_string_pretty(&top_pages).unwrap()
     }
 
-    pub fn compute_embeddings(&self, text: Vec<String>) -> Vec<Vec<f32>> {
-        if self.ollama.is_none() {
-            return vec![vec![0.0;768]];
-        }
-
-        let request = GenerateEmbeddingsRequest::new(
-            "nomic-embed-text:v1.5".to_owned(),
-            EmbeddingsInput::Multiple((text)),
-        ).keep_alive(KeepAlive::Until { time: 5, unit: TimeUnit::Hours });
-
-        let rt = tokio::runtime::Runtime::new().unwrap();
-        let response = rt.block_on(async {
-            self.ollama
-                .as_ref()
-                .unwrap()
-                .generate_embeddings(request)
-                .await
-        }).expect("failed to call ollama embeddings");
-
-        return response.embeddings;
-    }
     pub fn set_extras(&self, index: usize, computed: ComputedData) {}
 }
