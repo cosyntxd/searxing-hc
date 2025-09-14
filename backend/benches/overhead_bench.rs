@@ -1,7 +1,10 @@
 use std::fs;
 
-use criterion::{criterion_group, criterion_main, Criterion, black_box};
-use backend::{data::{ScrapedMainPageEnum, Summer2025MainPage}, database::Database};
+use backend::{
+    data::{ScrapedMainPageEnum, Summer2025MainPage},
+    database::Database,
+};
+use criterion::{Criterion, black_box, criterion_group, criterion_main};
 
 fn bench_database_new(c: &mut Criterion) {
     c.bench_function("Database::new_non_backed", |b| {
@@ -29,7 +32,6 @@ fn bench_add_entry(c: &mut Criterion) {
             .join(" ")
     };
 
-
     let db = Database::new_non_backed();
     let dummy_entry = ScrapedMainPageEnum::Summer2025(Summer2025MainPage {
         url: "https://link".into(),
@@ -52,9 +54,5 @@ fn bench_add_entry(c: &mut Criterion) {
     });
 }
 
-criterion_group!(
-    benches,
-    bench_database_new,
-    bench_add_entry,
-);
+criterion_group!(benches, bench_database_new, bench_add_entry,);
 criterion_main!(benches);

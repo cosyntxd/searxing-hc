@@ -34,7 +34,7 @@ impl OllamaEmbedder {
             None
         }
     }
-    pub fn generate_seqentially(&self, text: String)  -> Option<Vec<Vec<f32>>> {
+    pub fn generate_seqentially(&self, text: String) -> Option<Vec<Vec<f32>>> {
         let rt = tokio::runtime::Runtime::new().unwrap();
         rt.block_on(self.generate(text))
     }
@@ -42,7 +42,7 @@ impl OllamaEmbedder {
         assert!(embed_1.len() == embed_2.len());
         let n = embed_1.len().min(embed_2.len());
         if n == 0 {
-           return 0.0;
+            return 0.0;
         }
 
         let mut dot: f32 = 0.0;

@@ -93,7 +93,6 @@ pub struct Summer2025MainPage {
     pub updates: Vec<Summer2025IndividualUpdate>,
 }
 
-
 #[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct Summer2025IndividualUpdate {
     pub time: u32,
@@ -121,6 +120,11 @@ impl DatabasePage for Summer2025MainPage {
         //     return  acc;
         // }
         // 0.0
-        return self.description.split_ascii_whitespace().filter(|x| x == query).count() as f32 + self.time as f32;
+        return self
+            .description
+            .split_ascii_whitespace()
+            .filter(|x| x == query)
+            .count() as f32
+            + self.time as f32;
     }
 }

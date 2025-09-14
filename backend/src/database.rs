@@ -94,11 +94,13 @@ impl Database {
             data.raw_text[*existing_idx] = entry;
             data.processed[*existing_idx] = None;
         } else {
-            let embed =self.ollama.generate_seqentially(entry.preview().description.into())
-                    .unwrap()[0]
-                    .clone()
-                    .try_into()
-                    .unwrap();
+            let embed = self
+                .ollama
+                .generate_seqentially(entry.preview().description.into())
+                .unwrap()[0]
+                .clone()
+                .try_into()
+                .unwrap();
             data.raw_text.push(entry);
             data.processed.push(Some(ComputedData {
                 embedding: embed,
