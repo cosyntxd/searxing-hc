@@ -16,10 +16,10 @@ impl OllamaEmbedder {
             ollama: Ollama::default(),
         }
     }
-    pub async fn generate(&self, text: String) -> Option<Vec<Vec<f32>>> {
+    pub async fn generate(&self, text: &String) -> Option<Vec<Vec<f32>>> {
         let request = GenerateEmbeddingsRequest::new(
             "nomic-embed-text:v1.5".to_owned(),
-            EmbeddingsInput::Multiple((vec![text])),
+            EmbeddingsInput::Multiple((vec![text.to_string()])),
         )
         .keep_alive(KeepAlive::Until {
             time: 1,
@@ -34,7 +34,7 @@ impl OllamaEmbedder {
             None
         }
     }
-    pub fn generate_seqentially(&self, text: String) -> Option<Vec<Vec<f32>>> {
+    pub fn generate_seqentially(&self, text: &String) -> Option<Vec<Vec<f32>>> {
         let rt = tokio::runtime::Runtime::new().unwrap();
         rt.block_on(self.generate(text))
     }

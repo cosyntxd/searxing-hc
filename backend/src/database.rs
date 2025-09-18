@@ -96,7 +96,7 @@ impl Database {
         } else {
             let embed = self
                 .ollama
-                .generate_seqentially(entry.preview().description.into())
+                .generate_seqentially((&entry.preview().description).into())
                 .unwrap()[0]
                 .clone()
                 .try_into()
@@ -114,12 +114,17 @@ impl Database {
         let data = self.raw_data.read().unwrap();
         let mut min_heap: BinaryHeap<Reverse<(OrderedFloat<f32>, usize)>> =
             BinaryHeap::with_capacity(50);
+        let embed = &self.ollama.generate_seqentially(&query).unwrap()[0];
 
         for i in 0..data.length {
             let page = &data.raw_text[i];
             let extra = &data.processed[i];
 
-            let current_rank = OrderedFloat(page.rank(&query, extra));
+            let current_rank = OrderedFloat(OllamaEmbedder::comparare_cos(
+                &embed,
+                &data.processed[i].as_ref().unwrap().embedding,
+            ));
+            // let current_rank = OrderedFloat(page.rank(&query, extra));
             if current_rank.0 < 0.0 && !query.is_empty() {
                 continue;
             }
