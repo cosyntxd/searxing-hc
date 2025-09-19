@@ -88,19 +88,20 @@ impl Database {
         file.write_all(json_string.as_bytes()).unwrap();
     }
 
-    pub fn add_entry(&self, entry: ScrapedMainPageEnum) {
-        let mut data = self.raw_data.write().unwrap();
+    pub async fn add_entry(&self, entry: ScrapedMainPageEnum) {
         if let Some(existing_idx) = self.relational.get(&entry.unique_string()) {
+            let mut data = self.raw_data.write().unwrap();
             data.raw_text[*existing_idx] = entry;
             data.processed[*existing_idx] = None;
         } else {
             let embed = self
                 .ollama
-                .generate_seqentially((&entry.preview().description).into())
+                .generate((&entry.preview().description).into()).await
                 .unwrap()[0]
                 .clone()
                 .try_into()
                 .unwrap();
+            let mut data = self.raw_data.write().unwrap();
             data.raw_text.push(entry);
             data.processed.push(Some(ComputedData {
                 embedding: embed,
@@ -110,11 +111,11 @@ impl Database {
             data.length += 1;
         }
     }
-    pub fn search_and_rank_json(&self, query: String, k: usize) -> String {
+    pub async fn search_and_rank_json(&self, query: String, k: usize) -> String {
+        let embed = &self.ollama.generate(&query).await.unwrap()[0];
         let data = self.raw_data.read().unwrap();
         let mut min_heap: BinaryHeap<Reverse<(OrderedFloat<f32>, usize)>> =
             BinaryHeap::with_capacity(50);
-        let embed = &self.ollama.generate_seqentially(&query).unwrap()[0];
 
         for i in 0..data.length {
             let page = &data.raw_text[i];

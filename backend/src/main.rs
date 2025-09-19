@@ -11,7 +11,7 @@ use axum::{
         HeaderValue, Method,
         header::{ACCEPT, AUTHORIZATION, CONTENT_TYPE},
     },
-    response::IntoResponse,
+    response::{IntoResponse, Response},
     routing::{get, get_service, post},
 };
 use serde::{Deserialize, Serialize};
@@ -65,7 +65,7 @@ async fn add_data(
         }
     };
 
-    app_state.data.add_entry(entry);
+    app_state.data.add_entry(entry).await;
 
     let response_message = format!("Approx size of db: {}", -1);
 
@@ -78,9 +78,9 @@ struct SearchInputRequest {
 async fn query_sort(
     State(app_state): State<Arc<AppState>>,
     Query(payload): Query<SearchInputRequest>,
-) -> impl IntoResponse {
+) -> Response {
     let db_load_start = Instant::now();
-    let search_results = app_state.data.search_and_rank_json(payload.q, 500);
+    let search_results = app_state.data.search_and_rank_json(payload.q, 500).await;
     println!("sort took: {:?}", db_load_start.elapsed());
     (StatusCode::OK, search_results).into_response()
 }
