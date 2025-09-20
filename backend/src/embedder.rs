@@ -63,4 +63,25 @@ impl OllamaEmbedder {
             dot / (sum_sq_a.sqrt() * sum_sq_b.sqrt())
         }
     }
+    pub fn down_project(vector: &[f32], new_len: usize) -> Vec<f32> {
+        let old_len = vector.len();
+        assert!(new_len > 0 && new_len <= old_len);
+
+        let mut result = Vec::with_capacity(new_len);
+        let chunk_size = old_len as f32 / new_len as f32;
+
+        for i in 0..new_len {
+            let start = (i as f32 * chunk_size).floor() as usize;
+            let end = (((i + 1) as f32 * chunk_size).ceil() as usize).min(old_len);
+
+            if start < end {
+                let sum: f32 = vector[start..end].iter().sum();
+                let avg = sum / (end - start) as f32;
+                result.push(avg);
+            } else {
+                result.push(0.0);
+            }
+        }
+        result
+    }
 }

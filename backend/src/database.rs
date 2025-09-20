@@ -90,9 +90,9 @@ impl Database {
 
     pub async fn add_entry(&self, entry: ScrapedMainPageEnum) {
         if let Some(existing_idx) = self.relational.get(&entry.unique_string()) {
-            let mut data = self.raw_data.write().unwrap();
-            data.raw_text[*existing_idx] = entry;
-            data.processed[*existing_idx] = None;
+            // let mut data = self.raw_data.write().unwrap();
+            // data.raw_text[*existing_idx] = entry;
+            // data.processed[*existing_idx] = None;
         } else {
             let embed = self
                 .ollama
@@ -155,7 +155,7 @@ impl Database {
             })
             .collect::<Vec<DetailedSearchResult>>();
 
-        serde_json::to_string_pretty(&top_pages).unwrap()
+        serde_json::to_string(&top_pages).unwrap()
     }
 
     pub fn set_extras(&self, index: usize, computed: ComputedData) {}
