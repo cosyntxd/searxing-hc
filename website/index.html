@@ -670,7 +670,7 @@
         }
         
         async function fetchProjects(searchTerm = '') {
-            let url = `${window.location.hostname}:6552/query`;
+            let url = `http://localhost:6552/query`;
 
             url += `?q=${encodeURIComponent(searchTerm)}`;
             try {
@@ -724,9 +724,9 @@
             parseHashAndSearch(); 
         });
 
-        window.addEventListener('hashchange', () => {
-            parseHashAndSearch();
-        });
+        // window.addEventListener('hashchange', () => {
+        //     parseHashAndSearch();
+        // });
     </script>
 </body>
 </html>
