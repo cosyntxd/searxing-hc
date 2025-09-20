@@ -67,7 +67,7 @@ async fn add_data(
 
     app_state.data.add_entry(entry).await;
 
-    let response_message = format!("Approx size of db: {}", -1);
+    let response_message = format!("Approx size of db: {}", app_state.data.raw_data.read().unwrap().length);
 
     (StatusCode::OK, response_message).into_response()
 }
@@ -139,6 +139,17 @@ async fn set_extras(
     todo!()
 }
 
+async fn simple_debug(
+    State(app_state): State<Arc<AppState>>,
+) -> impl IntoResponse {
+    format!("{:?}", app_state.data.ollama.generate(&"test".into()).await.unwrap()[0])
+}
+
+async fn force_save(State(app_state): State<Arc<AppState>>,) -> impl IntoResponse {
+    app_state.data.save_json();
+    "finish"
+}
+
 #[tokio::main]
 async fn main() {
     tracing_subscriber::fmt().init();
@@ -170,13 +181,15 @@ async fn main() {
         .route(
             "/",
             get_service(ServeDir::new(
-                "/Users/ryan/Github/Hackclub-projects/website/index.html",
+                "/Users/ryan/Github/searxing-hc/website/index.html",
             )),
         )
         .route("/add", post(add_data))
         .route("/query", get(query_sort))
         .route("/preview", get(get_preview))
         .route("/set_extras", post(set_extras))
+        .route("/self-debug", get(simple_debug))
+        .route("/force-save", get(force_save))
         .with_state(Arc::clone(&state))
         .layer(cors_layer);
 
