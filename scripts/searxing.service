@@ -1,0 +1,7 @@
+[Service]
+WorkingDirectory=/home/searxing/searxing-hc/backend
+ExecStart="cargo r --release"
+Restart=on-failure
+
+[Install]
+WantedBy=default.target
