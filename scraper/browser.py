@@ -10,7 +10,10 @@ import typing
 from urllib.parse import urljoin
 from dataclasses import dataclass, fields
 from typing import Annotated, Any, TypeVar, Union, get_args, get_origin, get_type_hints
+import undetected_chromedriver as uc
+from webdriver_manager.chrome import ChromeDriverManager
 
+from selenium.webdriver.chrome.service import Service
 
 import lxml.html
 import requests
@@ -24,33 +27,29 @@ from selenium.common.exceptions import NoSuchElementException
 from library import Link, Text, Time, Url
 
 T = TypeVar('T')
+DRIVER_PATH = ChromeDriverManager().install()
+
 
 class ScraperBrowser:
-    def __init__(self, timeout = 20, simple = False, **kwargs):
+    def __init__(self, timeout = 20, simple = True, **kwargs):
         self.timeout = timeout
         self.simple = simple
         options = Options()
-
-        if self.simple:
-            # be really nice about only requesting what you need
-            prefs = {
-                "profile.managed_default_content_settings.images": 2,  # Block images
-                "profile.default_content_setting_values.stylesheets": 2, # Block CSS
-                "profile.default_content_setting_values.javascript": 2, # Block JavaScript
-                "profile.default_content_setting_values.notifications": 2, # Block notifications
-                "profile.default_content_setting_values.popups": 2, # Block popups
-                "profile.default_content_setting_values.plugins": 2, # Block plugins
-                "profile.default_content_setting_values.geolocation": 2, # Block geolocation
-                "profile.default_content_setting_values.media_stream": 2, # Block media access
-            }
-            options.add_experimental_option("prefs", prefs)
-
-
-        options.add_argument(f'--browser-version=137')
+        options.add_argument("--headless=new")
+        options.add_argument("--disable-gpu")
+        options.add_argument(f'--browser-version=140')
         if False:
-            self.driver = uc.Chrome(version_main=137, options=options)
+            self.driver = uc.Chrome(version_main=140, options=options)
         else:
-            self.driver = webdriver.Chrome(options=options)
+            self.driver = webdriver.Chrome(
+                service=Service(DRIVER_PATH), 
+                options=options
+            )
+        self.driver.execute_cdp_cmd("Network.enable", {})
+        self.driver.execute_cdp_cmd("Network.setBlockedURLs", {
+    "urls": ["*.png", "*.jpg", "*.jpeg", "*.gif", "*.webp", "*.svg", "*.mp4", "*.webm", "*.avi", "*.mov", "*.mkv"]
+})
+
 
         self.wait = WebDriverWait(self.driver, timeout, kwargs)
 
